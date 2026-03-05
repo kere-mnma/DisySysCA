@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "generated.grpc.zooservice1";
+option java_outer_classname = "ZooService1Impl";
+
+package ZooService1;
+
+// The service definition.
+// The server that you implement must extend the class  <servicename>ImplBase
+// so in this example you will create a server class that extends ZooService1ImplBase
+
+// ZooService 1 manages the temperature of various locations in the Zoo.
+// There are thermostats in each enclosure that measure the temperature
+
+service ZooService1 {
+
+   // for a specific location get a stream of updates about the current temperature
+   // to populate a chart on a dashboard for example
+   // SERVER STREAMING
+   rpc MonitorTheTemperature(Location) returns (stream Temperature) {}
+  
+  //for a specific location get the temperature right now
+  
+  // UNARY
+  rpc CurrentTemperature(Location) returns (Temperature) {}
+
+  //  get the average temperature  
+  // This is client streaming- this is commented out for Week 5. We will implement it in Week 6.
+  //rpc AverageTemperature(stream Temperature) returns (Temperature) {}
+  
+  // for each enclosure in the zoo get the current temperature
+  // This is bi-di - this is commented out for Week 5. We will implement it in Week 6.
+  // rpc ZooTemperature(stream Location) returns(stream Temperature) {}
+
+}
+
+   //  message identifying a location
+   message Location {
+     string location = 1;
+   }
+
+   // The response message containing answer from the server
+   message Temperature {
+     double tempValue = 1;
+   }
+ 
+   
