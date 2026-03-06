@@ -1,48 +1,111 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "generated.grpc.zooservice1";
-option java_outer_classname = "ZooService1Impl";
+option java_package = "generated.grpc.climatesensorservice";
+option java_outer_classname = "ClimateSensorServiceImpl";
 
-package ZooService1;
+package ClimateSensorService;
 
-// The service definition.
-// The server that you implement must extend the class  <servicename>ImplBase
-// so in this example you will create a server class that extends ZooService1ImplBase
+service ClimateSensorService {
 
-// ZooService 1 manages the temperature of various locations in the Zoo.
-// There are thermostats in each enclosure that measure the temperature
+  // UNARY RPC
+  rpc getLatestReading (SensorRequest) returns (SensorReading) {}
 
-service ZooService1 {
+  // CLIENT STREAMING RPC
 
-   // for a specific location get a stream of updates about the current temperature
-   // to populate a chart on a dashboard for example
-   // SERVER STREAMING
-   rpc MonitorTheTemperature(Location) returns (stream Temperature) {}
-  
-  //for a specific location get the temperature right now
-  
-  // UNARY
-  rpc CurrentTemperature(Location) returns (Temperature) {}
-
-  //  get the average temperature  
-  // This is client streaming- this is commented out for Week 5. We will implement it in Week 6.
-  //rpc AverageTemperature(stream Temperature) returns (Temperature) {}
-  
-  // for each enclosure in the zoo get the current temperature
-  // This is bi-di - this is commented out for Week 5. We will implement it in Week 6.
-  // rpc ZooTemperature(stream Location) returns(stream Temperature) {}
+  rpc streamSensorReadings (stream SensorReading) returns (SensorSummary) {}
 
 }
 
-   //  message identifying a location
-   message Location {
-     string location = 1;
-   }
+// Request Message
+message SensorRequest {
 
-   // The response message containing answer from the server
-   message Temperature {
-     double tempValue = 1;
-   }
- 
-   
+  string sensor_id  = 1;  // Unique identifier of the sensor to query
+                           // e.g. "SENSOR-001", "SENSOR-NW-FOREST-07"
+
+  string region_id  = 2;  // Optional: the zone the sensor belongs to
+                           // e.g. "ZONE-A-LAGOS"
+                           // Used to validate the sensor is in the expected zone
+}
+
+// Response Message
+message SensorReading {
+
+  string sensor_id      = 1;  // Unique identifier of the reporting sensor
+                               // e.g. "SENSOR-001", "SENSOR-NW-FOREST-07"
+
+  string region_id      = 2;  // Geographic deployment zone of this sensor
+                               // e.g. "ZONE-A-LAGOS", "ZONE-C-KANO"
+
+  float  temperature    = 3;  // Ambient air temperature in Celsius
+                               // e.g. 38.5
+                               // Wildfire danger threshold: above 35.0 C
+                               // Critical threshold: above 42.0 C
+
+  float  humidity       = 4;  // Relative humidity as a percentage (0.0 to 100.0)
+                               // e.g. 15.2
+                               // Wildfire danger threshold: below 20.0%
+                               // Critical threshold: below 10.0%
+
+  int32  co2_ppm        = 5;  // CO2 concentration in parts per million (ppm)
+                               // e.g. 450
+                               // Normal outdoor level: ~415 ppm
+                               // Elevated (possible combustion nearby): above 600 ppm
+                               // Danger level: above 1000 ppm
+
+  float  wind_speed     = 6;  // Wind speed in km/h at sensor location
+                               // e.g. 32.5
+                               // High wind accelerates wildfire spread
+                               // Danger threshold: above 40.0 km/h
+
+  float  soil_moisture  = 7;  // Soil moisture level as a percentage (0.0 to 100.0)
+                               // e.g. 12.0
+                               // Dry soil increases wildfire ignition risk
+                               // Danger threshold: below 15.0%
+
+  float  latitude       = 8;  // GPS latitude coordinate of this sensor
+                               // e.g. 6.5244
+
+  float  longitude      = 9;  // GPS longitude coordinate of this sensor
+                               // e.g. 3.3792
+
+  int64  timestamp      = 10; // Unix time in milliseconds when this reading was captured
+                               // e.g. 1741219200000
+
+  string battery_status = 11; // Current battery level of the sensor device
+                               // Values: "FULL", "GOOD", "LOW", "CRITICAL"
+                               // Allows the system to flag sensors needing maintenance
+}
+
+// Response Message
+message SensorSummary {
+
+  string status              = 1;  // Overall processing outcome
+                                    // Values: "SUCCESS", "PARTIAL_FAILURE", "FAILED"
+
+  int32  readings_received   = 2;  // Total number of SensorReading messages received
+  int32  readings_saved      = 3;  // Number successfully stored in the system
+  int32  readings_rejected   = 4;  // Number rejected due to invalid or corrupt data
+
+  float  avg_temperature     = 5;  // Mean temperature across all accepted readings (Celsius)
+  float  max_temperature     = 6;  // Highest temperature recorded in this batch (Celsius)
+
+  float  avg_humidity        = 7;  // Mean humidity across all accepted readings (percent)
+  float  min_humidity        = 8;  // Lowest humidity recorded in this batch (percent)
+
+  float  avg_wind_speed      = 9;  // Mean wind speed across all accepted readings (km/h)
+  float  avg_co2_ppm         = 10; // Mean CO2 concentration across all readings (ppm)
+
+  string risk_assessment     = 11; // Computed wildfire danger level for this batch
+                                    // Values: "LOW RISK", "MODERATE RISK",
+                                    // "HIGH RISK", "CRITICAL - IMMEDIATE ACTION REQUIRED"
+
+  string risk_reasoning      = 12; // Plain text explanation of how the risk was computed
+                                    // e.g. "Avg temp 41C + avg humidity 9% + wind 52km/h = CRITICAL"
+
+  repeated string flagged_sensors = 13; // List of sensor IDs that reported dangerous readings
+                                         // e.g. ["SENSOR-003", "SENSOR-007"]
+                                         // These sensors triggered the risk threshold individually
+
+  int64  processed_at        = 14; // Unix timestamp when the server completed processing
+}
