@@ -12,7 +12,6 @@ service ClimateSensorService {
   rpc getLatestReading (SensorRequest) returns (SensorReading) {}
 
   // CLIENT STREAMING RPC
-
   rpc streamSensorReadings (stream SensorReading) returns (SensorSummary) {}
 
 }

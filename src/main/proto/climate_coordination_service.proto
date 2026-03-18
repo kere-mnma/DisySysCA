@@ -17,8 +17,6 @@ service ClimateCoordinationService {
 
 }
 
-// Sensor-Streaming Method
-
 // Request Message:
 message CoordinationMessage {
 
