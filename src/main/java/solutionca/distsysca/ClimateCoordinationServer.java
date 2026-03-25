@@ -1,44 +1,35 @@
 /*
- * SDG 15 - Life on Land
- * Smart Climate and Wildfire Risk Monitoring System
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package solutionca.distsysca;
+
 
 import generated.grpc.climatecoordinationservice.ClimateCoordinationServiceGrpc.ClimateCoordinationServiceImplBase;
 import generated.grpc.climatecoordinationservice.CoordinationMessage;
 import generated.grpc.climatecoordinationservice.CoordinationResponse;
 
+import io.grpc.Context;
+import io.grpc.Metadata;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
 import java.time.LocalTime;
 import java.util.logging.Logger;
 
-/**
- * ClimateCoordinationService Server
- *
- * Implements the RPC method defined in climate_coordination_service.proto:
- *   1. coordinateResponse() - BIDIRECTIONAL STREAMING RPC
- *
- * The class extends ClimateCoordinationServiceImplBase which is generated
- * by protoc from climate_coordination_service.proto. Same pattern as
- * ZooService1 extending ZooService1ImplBase from the class sample.
- *
- * BIDIRECTIONAL STREAMING means:
- *   - The CLIENT streams CoordinationMessage updates to the server
- *   - The SERVER streams CoordinationResponse instructions back
- *   - Both happen simultaneously on the same open connection
- */
 public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBase {
 
     private static final Logger logger = Logger.getLogger(ClimateCoordinationServer.class.getName());
 
+    static final Metadata.Key<String> CLIENT_ID_KEY =
+            Metadata.Key.of("client-id", Metadata.ASCII_STRING_MARSHALLER);
+
     public static void main(String[] args) {
 
         ClimateCoordinationServer coordinationServer = new ClimateCoordinationServer();
-
         int port = 50053;
 
         try {
@@ -49,6 +40,14 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
 
             logger.info("Server started, listening on " + port);
             System.out.println("***** ClimateCoordinationService Server started, listening on " + port);
+
+            WildfireServiceRegistration reg = WildfireServiceRegistration.getInstance();
+            reg.registerService(
+                    "_grpc._tcp.local.",
+                    "ClimateCoordinationService",
+                    port,
+                    "SDG15 - Climate Coordination Service: Multi-Agency Disaster Response Hub"
+            );
 
             server.awaitTermination();
 
@@ -63,67 +62,84 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
      * BIDIRECTIONAL STREAMING RPC
      * rpc coordinateResponse (stream CoordinationMessage) returns (stream CoordinationResponse) {}
      *
-     * The method returns a StreamObserver<CoordinationMessage> because
-     * the server needs to LISTEN to what the client is streaming in.
-     * The responseObserver parameter is what the server uses to stream
-     * CoordinationResponse messages back to the client simultaneously.
+     * REMOTE ERROR HANDLING:
+     * - Returns Status.INVALID_ARGUMENT if sender_org or region_id is missing
+     * - onError() logs the gRPC error status to the server console
      *
-     * For each CoordinationMessage received from an agency client,
-     * the server immediately analyses it and streams back a
-     * CoordinationResponse with recommended actions, risk level,
-     * resource allocation and evacuation instructions.
-     *
-     * This is the same anonymous StreamObserver pattern as ZooService1
-     * averageTemperature() - the server returns a new StreamObserver
-     * that handles onNext(), onError() and onCompleted().
-     * The difference is that in BIDIRECTIONAL streaming, the server
-     * calls responseObserver.onNext() inside onNext() itself -
-     * both sides communicate at the same time.
-     *
-     * @param responseObserver - used to stream responses back to the client
-     * @return StreamObserver  - returned to the client to receive incoming messages
+     * CANCELLATION:
+     * - Checks Context.current().isCancelled() before processing each message.
+     *   If the client has cancelled, the server stops responding immediately.
      */
     @Override
     public StreamObserver<CoordinationMessage> coordinateResponse(
             StreamObserver<CoordinationResponse> responseObserver) {
 
-        // The server sets up a new observer that handles each CoordinationMessage
-        // that arrives from the agency client.
-        // Unlike CLIENT STREAMING where we wait for onCompleted() to reply,
-        // in BIDIRECTIONAL STREAMING we call responseObserver.onNext() immediately
-        // inside onNext() so both sides talk at the same time.
         return new StreamObserver<CoordinationMessage>() {
 
             @Override
-            // When a CoordinationMessage arrives from an agency client,
-            // immediately analyse it and stream back a CoordinationResponse
             public void onNext(CoordinationMessage message) {
+
+                // -----------------------------------------------------------
+                // CANCELLATION CHECK in bidirectional streaming
+                // If the client closed the stream or cancelled, stop processing
+                // -----------------------------------------------------------
+                if (Context.current().isCancelled()) {
+                    System.out.println(LocalTime.now()
+                            + ": coordinateResponse() - client cancelled. Stopping.");
+                    responseObserver.onError(Status.CANCELLED
+                            .withDescription("Coordination stream cancelled by client")
+                            .asRuntimeException());
+                    return;
+                }
+
                 System.out.println(LocalTime.now() + ": coordinateResponse() received message"
-                        + " | From: "    + message.getSenderOrg()
-                        + " | Region: "  + message.getRegionId()
-                        + " | Event: "   + message.getEventType()
-                        + " | Priority: "+ message.getPriority()
-                        + " | Update: "  + message.getStatusUpdate());
+                        + " | From: "     + message.getSenderOrg()
+                        + " | Region: "   + message.getRegionId()
+                        + " | Event: "    + message.getEventType()
+                        + " | Priority: " + message.getPriority()
+                        + " | Update: "   + message.getStatusUpdate());
 
-                // Compute the wildfire risk level from the incoming message priority
-                String riskLevel = computeRiskLevel(message.getPriority());
+                // -----------------------------------------------------------
+                // REMOTE ERROR HANDLING - INVALID_ARGUMENT
+                // sender_org and region_id are both required in every message
+                // -----------------------------------------------------------
+                if (message.getSenderOrg().isEmpty()) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                            .withDescription("sender_org is required in every CoordinationMessage")
+                            .asRuntimeException());
+                    return;
+                }
 
-                // Determine the recommended action based on event type and priority
-                String recommendedAction = getRecommendedAction(
+                if (message.getRegionId().isEmpty()) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                            .withDescription("region_id is required in every CoordinationMessage")
+                            .asRuntimeException());
+                    return;
+                }
+
+                // -----------------------------------------------------------
+                // REMOTE ERROR HANDLING - INVALID_ARGUMENT
+                // Priority must be between 1 and 4
+                // -----------------------------------------------------------
+                if (message.getPriority() < 1 || message.getPriority() > 4) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT
+                            .withDescription("priority must be between 1 and 4. Received: "
+                                    + message.getPriority())
+                            .asRuntimeException());
+                    return;
+                }
+
+                String riskLevel          = computeRiskLevel(message.getPriority());
+                String recommendedAction  = getRecommendedAction(
                         message.getEventType(), message.getPriority(), message.getRegionId());
-
-                // Determine resource allocation based on priority
                 String resourceAllocation = getResourceAllocation(
                         message.getPriority(), message.getRegionId());
 
-                // Determine if evacuation is required
                 boolean evacuationRequired = message.getPriority() >= 3
                         && message.getEventType().equalsIgnoreCase("WILDFIRE");
-
-                float evacuationRadiusKm = evacuationRequired
+                float evacuationRadiusKm   = evacuationRequired
                         ? (message.getPriority() == 4 ? 10.0f : 5.0f) : 0.0f;
 
-                // Build the CoordinationResponse
                 CoordinationResponse response = CoordinationResponse.newBuilder()
                         .setResponseId("RESP-" + message.getRegionId()
                                 + "-" + System.currentTimeMillis())
@@ -141,24 +157,24 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
                         .setTimestamp(System.currentTimeMillis())
                         .build();
 
-                System.out.println(LocalTime.now() + ": coordinateResponse() streaming response"
-                        + " | To: "   + message.getSenderOrg()
-                        + " | Risk: " + riskLevel
+                System.out.println(LocalTime.now() + ": coordinateResponse() response streamed"
+                        + " | To: "     + message.getSenderOrg()
+                        + " | Risk: "   + riskLevel
                         + " | Action: " + recommendedAction);
 
-                // Stream the response back to the client immediately
-                // BIDIRECTIONAL: both onNext() calls happen simultaneously
                 responseObserver.onNext(response);
             }
 
             @Override
             public void onError(Throwable t) {
+                // -----------------------------------------------------------
+                // REMOTE ERROR HANDLING - log the error with gRPC status
+                // -----------------------------------------------------------
                 System.out.println(LocalTime.now()
-                        + ": coordinateResponse() error: " + t.getMessage());
+                        + ": coordinateResponse() client stream ERROR: " + t.getMessage());
             }
 
             @Override
-            // When the client closes their stream, the server closes its stream too
             public void onCompleted() {
                 System.out.println(LocalTime.now()
                         + ": coordinateResponse() client stream closed - closing response stream");
@@ -167,10 +183,6 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
         };
     }
 
-    // -------------------------------------------------------------------------
-    // Helper: Computes risk level from priority number
-    // Priority 4=CRITICAL, 3=HIGH, 2=MEDIUM, 1=LOW
-    // -------------------------------------------------------------------------
     private String computeRiskLevel(int priority) {
         switch (priority) {
             case 4:  return "CRITICAL";
@@ -180,9 +192,6 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Helper: Returns the recommended action based on event type and priority
-    // -------------------------------------------------------------------------
     private String getRecommendedAction(String eventType, int priority, String regionId) {
         if (eventType.equalsIgnoreCase("WILDFIRE") && priority == 4) {
             return "IMMEDIATE EVACUATION of " + regionId
@@ -202,9 +211,6 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Helper: Returns resource allocation based on priority
-    // -------------------------------------------------------------------------
     private String getResourceAllocation(int priority, String regionId) {
         switch (priority) {
             case 4:  return "2 x aerial water bombers, 4 x ground fire units, "
@@ -215,21 +221,14 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Helper: Predicts event spread from fire_spread_km field
-    // -------------------------------------------------------------------------
     private String getPredictedSpread(float fireSpreadKm) {
         if (fireSpreadKm > 0) {
-            return "Current spread: " + fireSpreadKm + " sq km. "
-                    + "Estimated to reach adjacent zone in approximately "
+            return "Current spread: " + fireSpreadKm + " sq km. Estimated to reach adjacent zone in "
                     + (int) (fireSpreadKm * 4) + " minutes at current rate.";
         }
         return "Spread data unavailable. Await next sensor update.";
     }
 
-    // -------------------------------------------------------------------------
-    // Helper: Returns coordination notes based on priority
-    // -------------------------------------------------------------------------
     private String getCoordinationNotes(int priority) {
         if (priority == 4) {
             return "ALL AGENCIES: Do not position units NE of fire front. "

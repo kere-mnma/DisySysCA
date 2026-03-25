@@ -4,7 +4,15 @@ option java_multiple_files = true;
 option java_package = "generated.grpc.climatesensorservice";
 option java_outer_classname = "ClimateSensorServiceImpl";
 
-package ClimateSensorService;
+package sdg15.sensor;
+
+
+// ClimateSensorService is simulates a network of smart environmental sensors 
+// deployed across land zones which would continuously measuring atmospheric 
+// and ground conditions for data collection. The service methods used are:
+//   - getLatestReading()      UNARY           
+//   - streamSensorReadings()  CLIENT STREAMING 
+
 
 service ClimateSensorService {
 
@@ -16,95 +24,74 @@ service ClimateSensorService {
 
 }
 
-// Request Message
+// Request Messages for getLatestReading() 
+
 message SensorRequest {
 
-  string sensor_id  = 1;  // Unique identifier of the sensor to query
-                           // e.g. "SENSOR-001", "SENSOR-NW-FOREST-07"
+  string sensor_id  = 1;  
 
-  string region_id  = 2;  // Optional: the zone the sensor belongs to
-                           // e.g. "ZONE-A-LAGOS"
-                           // Used to validate the sensor is in the expected zone
+  string region_id  = 2;  
 }
 
-// Response Message
+// Messages 
+// Used as resonse message for getLatestReading() 
+// Used as streamed request for streamSensorReadings() 
+
 message SensorReading {
 
-  string sensor_id      = 1;  // Unique identifier of the reporting sensor
-                               // e.g. "SENSOR-001", "SENSOR-NW-FOREST-07"
+  string sensor_id      = 1;  
 
-  string region_id      = 2;  // Geographic deployment zone of this sensor
-                               // e.g. "ZONE-A-LAGOS", "ZONE-C-KANO"
+  string region_id      = 2;  
 
-  float  temperature    = 3;  // Ambient air temperature in Celsius
-                               // e.g. 38.5
-                               // Wildfire danger threshold: above 35.0 C
-                               // Critical threshold: above 42.0 C
+  float  temperature    = 3;  
 
-  float  humidity       = 4;  // Relative humidity as a percentage (0.0 to 100.0)
-                               // e.g. 15.2
-                               // Wildfire danger threshold: below 20.0%
-                               // Critical threshold: below 10.0%
+  float  humidity       = 4;  
 
-  int32  co2_ppm        = 5;  // CO2 concentration in parts per million (ppm)
-                               // e.g. 450
-                               // Normal outdoor level: ~415 ppm
-                               // Elevated (possible combustion nearby): above 600 ppm
-                               // Danger level: above 1000 ppm
+  int32  co2_ppm        = 5;  
 
-  float  wind_speed     = 6;  // Wind speed in km/h at sensor location
-                               // e.g. 32.5
-                               // High wind accelerates wildfire spread
-                               // Danger threshold: above 40.0 km/h
+  float  wind_speed     = 6;  
 
-  float  soil_moisture  = 7;  // Soil moisture level as a percentage (0.0 to 100.0)
-                               // e.g. 12.0
-                               // Dry soil increases wildfire ignition risk
-                               // Danger threshold: below 15.0%
+  float  soil_moisture  = 7;  
 
-  float  latitude       = 8;  // GPS latitude coordinate of this sensor
-                               // e.g. 6.5244
+  float  latitude       = 8;  
 
-  float  longitude      = 9;  // GPS longitude coordinate of this sensor
-                               // e.g. 3.3792
+  float  longitude      = 9;  
 
-  int64  timestamp      = 10; // Unix time in milliseconds when this reading was captured
-                               // e.g. 1741219200000
+  int64  timestamp      = 10; 
 
-  string battery_status = 11; // Current battery level of the sensor device
-                               // Values: "FULL", "GOOD", "LOW", "CRITICAL"
-                               // Allows the system to flag sensors needing maintenance
+  string battery_status = 11; 
 }
 
-// Response Message
+
+// response message streamSensorReadings
+
 message SensorSummary {
 
-  string status              = 1;  // Overall processing outcome
-                                    // Values: "SUCCESS", "PARTIAL_FAILURE", "FAILED"
+  string status              = 1;  
 
-  int32  readings_received   = 2;  // Total number of SensorReading messages received
-  int32  readings_saved      = 3;  // Number successfully stored in the system
-  int32  readings_rejected   = 4;  // Number rejected due to invalid or corrupt data
+  int32  readings_received   = 2;  
 
-  float  avg_temperature     = 5;  // Mean temperature across all accepted readings (Celsius)
-  float  max_temperature     = 6;  // Highest temperature recorded in this batch (Celsius)
+  int32  readings_saved      = 3;  
 
-  float  avg_humidity        = 7;  // Mean humidity across all accepted readings (percent)
-  float  min_humidity        = 8;  // Lowest humidity recorded in this batch (percent)
+  int32  readings_rejected   = 4;  
 
-  float  avg_wind_speed      = 9;  // Mean wind speed across all accepted readings (km/h)
-  float  avg_co2_ppm         = 10; // Mean CO2 concentration across all readings (ppm)
+  float  avg_temperature     = 5;  
 
-  string risk_assessment     = 11; // Computed wildfire danger level for this batch
-                                    // Values: "LOW RISK", "MODERATE RISK",
-                                    // "HIGH RISK", "CRITICAL - IMMEDIATE ACTION REQUIRED"
+  float  max_temperature     = 6;  
 
-  string risk_reasoning      = 12; // Plain text explanation of how the risk was computed
-                                    // e.g. "Avg temp 41C + avg humidity 9% + wind 52km/h = CRITICAL"
+  float  avg_humidity        = 7;  
 
-  repeated string flagged_sensors = 13; // List of sensor IDs that reported dangerous readings
-                                         // e.g. ["SENSOR-003", "SENSOR-007"]
-                                         // These sensors triggered the risk threshold individually
+  float  min_humidity        = 8;  
 
-  int64  processed_at        = 14; // Unix timestamp when the server completed processing
+  float  avg_wind_speed      = 9;  
+
+  float  avg_co2_ppm         = 10; 
+
+  string risk_assessment     = 11; 
+
+  string risk_reasoning      = 12; 
+
+  repeated string flagged_sensors = 13; 
+
+  int64  processed_at        = 14; 
 }

@@ -4,20 +4,75 @@ option java_multiple_files = true;
 option java_package = "generated.grpc.climatecoordinationservice";
 option java_outer_classname = "ClimateCoordinationServiceImpl";
 
-package ClimateCoordinationService;
+package sdg15.coordination;
 
-// ClimateCoordinationService serves as a control panel that connects
-// multiple disaster management agencies together using two-way
-// communication channel.
+// =====================================================================
+// SERVICE: ClimateCoordinationService
+// =====================================================================
+// ClimateCoordinationService is the command and control brain of the
+// Smart Climate and Wildfire Risk Monitoring System. It connects
+// multiple disaster management agencies together in a live, two-way
+// communication channel with the central server.
+//
+// While ClimateSensorService collects raw data and AlertService
+// broadcasts notifications, ClimateCoordinationService is where
+// agencies actually talk to each other and receive coordinated,
+// intelligent response instructions from the server in real time.
+//
+// Real-world analogy: Imagine the emergency coordination room during
+// a wildfire. The fire service, meteorology department, and national
+// disaster management agency all have open radio lines simultaneously.
+// Each agency reports what they see on the ground. The coordination
+// server listens to all of them at once and broadcasts back specific
+// action instructions to the right agencies in real time.
+//
+// How Bidirectional Streaming works here:
+//   - Each agency client sends a STREAM of CoordinationMessage updates
+//     (e.g. "Fire has crossed the river into Zone D")
+//   - The server simultaneously sends back a STREAM of
+//     CoordinationResponse instructions
+//     (e.g. "Redirect aerial support to Zone D, evacuate villages 5-9")
+//   - Both sides are talking and listening at the same time.
+//
+// SDG 15 - Life on Land:
+// Coordinated multi-agency disaster response dramatically reduces the
+// land area destroyed by wildfires and droughts. Faster, smarter
+// coordination saves forests, habitats, and lives.
+//
+// RPC METHODS:
+//   - coordinateResponse()   BIDIRECTIONAL STREAMING (many requests <-> many responses)
+// =====================================================================
 
 service ClimateCoordinationService {
 
   // BIDIRECTIONAL STREAMING RPC
+  // Multiple agency clients connect to this service and simultaneously:
+  //   - Stream CoordinationMessage updates to the server (what they see/need)
+  //   - Receive CoordinationResponse instructions from the server (what to do)
+  // The server processes incoming messages in real time and pushes back
+  // intelligent, prioritised response instructions to all connected agencies.
+  // This channel stays open for the duration of the emergency event.
   rpc coordinateResponse (stream CoordinationMessage) returns (stream CoordinationResponse) {}
 
 }
 
-// Request Message:
+// =====================================================================
+// MESSAGES
+// =====================================================================
+
+// ---------------------------------------------------------------------
+// CoordinationMessage
+// Used as STREAMED REQUEST in: coordinateResponse() [BIDIRECTIONAL]
+//
+// Sent continuously by a field agency or automated system to report
+// their current situation on the ground. Each message represents one
+// update in an ongoing stream of live situation reports.
+//
+// Example flow of messages from one agency:
+//   Message 1: "Wildfire confirmed in Zone A, wind pushing north"
+//   Message 2: "Fire has crossed highway, now entering Zone B"
+//   Message 3: "Water supply exhausted, requesting aerial support"
+// ---------------------------------------------------------------------
 message CoordinationMessage {
 
   string message_id      = 1;  // Unique ID for this specific message in the stream
@@ -62,7 +117,22 @@ message CoordinationMessage {
   int64  timestamp       = 13; // Unix time in milliseconds when this message was sent
 }
 
-// Response Message:
+// ---------------------------------------------------------------------
+// CoordinationResponse
+// Used as STREAMED RESPONSE in: coordinateResponse() [BIDIRECTIONAL]
+//
+// Pushed by the server back to agency clients as it processes incoming
+// CoordinationMessages. Each response contains specific, actionable
+// instructions for how agencies should respond to the evolving situation.
+//
+// The server sends these responses to ALL connected agency clients,
+// ensuring every responder has the same up-to-date picture.
+//
+// Example flow of server responses:
+//   Response 1: "Zone A fire confirmed CRITICAL. Evacuate 10km radius."
+//   Response 2: "Aerial water bombers redirected from Zone B to Zone A."
+//   Response 3: "Met Dept: Predict wind shift in 40 mins. Update fire models."
+// ---------------------------------------------------------------------
 message CoordinationResponse {
 
   string response_id         = 1;  // Unique ID for this response message
