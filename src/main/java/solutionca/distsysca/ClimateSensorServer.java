@@ -63,13 +63,14 @@ public class ClimateSensorServer extends ClimateSensorServiceImplBase {
      * UNARY RPC
      * rpc getLatestReading (SensorRequest) returns (SensorReading) {}
      */
+   
     @Override
     public void getLatestReading(SensorRequest request,
             StreamObserver<SensorReading> responseObserver) {
 
         System.out.println(LocalTime.now() + ": getLatestReading() received"
                 + " | Sensor ID: " + request.getSensorId()
-                + " | Region: "    + request.getRegionId());
+                + " | Region: " + request.getRegionId());
 
         if (request.getSensorId().isEmpty()) {
             responseObserver.onError(Status.INVALID_ARGUMENT
@@ -86,26 +87,63 @@ public class ClimateSensorServer extends ClimateSensorServiceImplBase {
             return;
         }
 
-        // Different readings is simulated depending on the sensor queried
-        float  temperature;
-        float  humidity;
-        int    co2Ppm;
-        float  windSpeed;
-        float  soilMoisture;
-        String batteryStatus;
-
         String sensorId = request.getSensorId().toUpperCase();
-
-        if (sensorId.contains("001") || sensorId.contains("002")) {
-            temperature  = 44.7f;  humidity = 8.3f;   co2Ppm = 820;
-            windSpeed    = 48.5f;  soilMoisture = 9.1f;  batteryStatus = "GOOD";
-        } else if (sensorId.contains("003") || sensorId.contains("004")) {
-            temperature  = 36.2f;  humidity = 22.4f;  co2Ppm = 510;
-            windSpeed    = 29.0f;  soilMoisture = 18.5f; batteryStatus = "FULL";
-        } else {
-            temperature  = 28.5f;  humidity = 45.0f;  co2Ppm = 420;
-            windSpeed    = 15.0f;  soilMoisture = 35.0f; batteryStatus = "FULL";
+        int seed = 0;
+        String digits = sensorId.replaceAll("[^0-9]", "");
+        if (!digits.isEmpty()) {
+            seed = Integer.parseInt(digits) % 10; // 0-9 range
         }
+
+        // Compute 
+        float temperature;
+        float humidity;
+        int co2Ppm;
+        float windSpeed;
+        float soilMoisture;
+        String batteryStatus;
+        String zone;
+
+        if (seed <= 2) {
+            // Critical wildfire conditions
+            temperature = 44.0f + seed * 1.5f;    
+            humidity = 9.5f - seed * 0.8f;    
+            co2Ppm = 800 + seed * 40;       
+            windSpeed = 46.0f + seed * 3.0f;     
+            soilMoisture = 10.0f - seed * 0.5f;     
+            batteryStatus = "GOOD";
+            zone = "DANGER ZONE";
+        } else if (seed <= 4) {
+            // High risk conditions
+            temperature = 38.0f + seed * 0.8f;    
+            humidity = 18.0f - seed * 1.0f;    
+            co2Ppm = 600 + seed * 20;      
+            windSpeed = 35.0f + seed * 1.5f;     
+            soilMoisture = 14.0f - seed * 0.5f;     
+            batteryStatus = "FULL";
+            zone = "HIGH RISK ZONE";
+        } else if (seed <= 6) {
+            // Moderate conditions
+            temperature = 33.0f + seed * 0.5f;    
+            humidity = 24.0f + seed * 0.5f;   
+            co2Ppm = 480 + seed * 10;       
+            windSpeed = 25.0f + seed * 0.8f;     
+            soilMoisture = 17.0f + seed * 0.3f;    
+            batteryStatus = "FULL";
+            zone = "MODERATE ZONE";
+        } else {
+            // Normal safe conditions
+            temperature = 26.0f + seed * 0.4f;    
+            humidity = 42.0f + seed * 1.5f;    
+            co2Ppm = 410 + seed * 3;        
+            windSpeed = 10.0f + seed * 0.5f;     
+            soilMoisture = 32.0f + seed * 1.2f;     
+            batteryStatus = "FULL";
+            zone = "NORMAL ZONE";
+        }
+
+        // GPS coordinates 
+        float latitude = 6.5244f + (seed * 0.05f);
+        float longitude = 3.3792f + (seed * 0.04f);
 
         SensorReading reading = SensorReading.newBuilder()
                 .setSensorId(request.getSensorId())
@@ -115,13 +153,15 @@ public class ClimateSensorServer extends ClimateSensorServiceImplBase {
                 .setCo2Ppm(co2Ppm)
                 .setWindSpeed(windSpeed)
                 .setSoilMoisture(soilMoisture)
-                .setLatitude(6.5244f)
-                .setLongitude(3.3792f)
+                .setLatitude(latitude)
+                .setLongitude(longitude)
                 .setTimestamp(System.currentTimeMillis())
                 .setBatteryStatus(batteryStatus)
                 .build();
 
         System.out.println(LocalTime.now() + ": getLatestReading() response sent"
+                + " | Sensor: " + sensorId
+                + " | Zone: " + zone
                 + " | Temp: " + temperature + "C"
                 + " | Humidity: " + humidity + "%"
                 + " | CO2: " + co2Ppm + "ppm");
@@ -193,7 +233,6 @@ public class ClimateSensorServer extends ClimateSensorServiceImplBase {
 
             @Override
             public void onError(Throwable t) {
-
                 System.out.println(LocalTime.now()
                         + ": streamSensorReadings() client stream ERROR: " + t.getMessage());
             }
@@ -203,7 +242,6 @@ public class ClimateSensorServer extends ClimateSensorServiceImplBase {
                 System.out.println(LocalTime.now() + ": streamSensorReadings() stream complete"
                         + " | Saved: " + readings.size()
                         + " | Rejected: " + readingsRejected);
-
 
                 if (readings.isEmpty()) {
                     responseObserver.onError(Status.INVALID_ARGUMENT

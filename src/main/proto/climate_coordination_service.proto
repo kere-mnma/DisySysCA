@@ -6,175 +6,38 @@ option java_outer_classname = "ClimateCoordinationServiceImpl";
 
 package sdg15.coordination;
 
-// =====================================================================
-// SERVICE: ClimateCoordinationService
-// =====================================================================
-// ClimateCoordinationService is the command and control brain of the
-// Smart Climate and Wildfire Risk Monitoring System. It connects
-// multiple disaster management agencies together in a live, two-way
-// communication channel with the central server.
-//
-// While ClimateSensorService collects raw data and AlertService
-// broadcasts notifications, ClimateCoordinationService is where
-// agencies actually talk to each other and receive coordinated,
-// intelligent response instructions from the server in real time.
-//
-// Real-world analogy: Imagine the emergency coordination room during
-// a wildfire. The fire service, meteorology department, and national
-// disaster management agency all have open radio lines simultaneously.
-// Each agency reports what they see on the ground. The coordination
-// server listens to all of them at once and broadcasts back specific
-// action instructions to the right agencies in real time.
-//
-// How Bidirectional Streaming works here:
-//   - Each agency client sends a STREAM of CoordinationMessage updates
-//     (e.g. "Fire has crossed the river into Zone D")
-//   - The server simultaneously sends back a STREAM of
-//     CoordinationResponse instructions
-//     (e.g. "Redirect aerial support to Zone D, evacuate villages 5-9")
-//   - Both sides are talking and listening at the same time.
-//
-// SDG 15 - Life on Land:
-// Coordinated multi-agency disaster response dramatically reduces the
-// land area destroyed by wildfires and droughts. Faster, smarter
-// coordination saves forests, habitats, and lives.
-//
-// RPC METHODS:
-//   - coordinateResponse()   BIDIRECTIONAL STREAMING (many requests <-> many responses)
-// =====================================================================
-
 service ClimateCoordinationService {
-
-  // BIDIRECTIONAL STREAMING RPC
-  // Multiple agency clients connect to this service and simultaneously:
-  //   - Stream CoordinationMessage updates to the server (what they see/need)
-  //   - Receive CoordinationResponse instructions from the server (what to do)
-  // The server processes incoming messages in real time and pushes back
-  // intelligent, prioritised response instructions to all connected agencies.
-  // This channel stays open for the duration of the emergency event.
   rpc coordinateResponse (stream CoordinationMessage) returns (stream CoordinationResponse) {}
-
 }
 
-// =====================================================================
-// MESSAGES
-// =====================================================================
-
-// ---------------------------------------------------------------------
-// CoordinationMessage
-// Used as STREAMED REQUEST in: coordinateResponse() [BIDIRECTIONAL]
-//
-// Sent continuously by a field agency or automated system to report
-// their current situation on the ground. Each message represents one
-// update in an ongoing stream of live situation reports.
-//
-// Example flow of messages from one agency:
-//   Message 1: "Wildfire confirmed in Zone A, wind pushing north"
-//   Message 2: "Fire has crossed highway, now entering Zone B"
-//   Message 3: "Water supply exhausted, requesting aerial support"
-// ---------------------------------------------------------------------
 message CoordinationMessage {
-
-  string message_id      = 1;  // Unique ID for this specific message in the stream
-                                // e.g. "MSG-FireSvc-001", "MSG-FireSvc-002"
-
-  string sender_org      = 2;  // Name of the agency sending this update
-                                // e.g. "Lagos Fire Service", "Federal Meteorology Dept",
-                                // "National Disaster Management Agency", "Forest Rangers Unit"
-
-  string sender_id       = 3;  // Unique identifier of this specific responder/unit
-                                // e.g. "UNIT-LAGOS-FIRE-04", "MET-OFFICER-KANO-01"
-
-  int32  priority        = 4;  // Urgency level of this message
-                                // 1 = LOW    (routine update, no immediate danger)
-                                // 2 = MEDIUM (situation developing, monitoring needed)
-                                // 3 = HIGH   (active threat, response required soon)
-                                // 4 = CRITICAL (life-threatening, immediate action needed)
-
-  string region_id       = 5;  // The geographic zone this message refers to
-                                // e.g. "ZONE-A-LAGOS", "ZONE-C-KANO", "ZONE-F-ABUJA"
-
-  string event_type      = 6;  // Category of emergency being reported
-                                // e.g. "WILDFIRE", "DROUGHT", "FLOOD", "DEFORESTATION"
-
-  string status_update   = 7;  // Plain text description of the current ground situation
-                                // e.g. "Fire front 2km wide advancing NE at 60km/h.
-                                //        Road access cut off. Requesting evacuation order."
-
-  float  latitude        = 8;  // Current GPS latitude of the situation being reported
-  float  longitude       = 9;  // Current GPS longitude of the situation being reported
-
-  float  fire_spread_km  = 10; // Estimated area affected by fire in square kilometres
-                                // e.g. 4.7 - used by server to scale response intensity
-
-  bool   resources_needed = 11; // true if the agency is requesting additional resources
-                                 // Triggers the server to include resource allocation in response
-
-  string resource_type   = 12; // Type of resource being requested if resources_needed is true
-                                // e.g. "AERIAL_SUPPORT", "WATER_TANKERS",
-                                // "MEDICAL_TEAM", "EVACUATION_BUSES"
-
-  int64  timestamp       = 13; // Unix time in milliseconds when this message was sent
+  string message_id       = 1;
+  string sender_org       = 2;
+  string sender_id        = 3;
+  int32  priority         = 4;
+  string region_id        = 5;
+  string event_type       = 6;
+  string status_update    = 7;
+  float  latitude         = 8;
+  float  longitude        = 9;
+  float  fire_spread_km   = 10;
+  bool   resources_needed = 11;
+  string resource_type    = 12;
+  int64  timestamp        = 13;
 }
 
-// ---------------------------------------------------------------------
-// CoordinationResponse
-// Used as STREAMED RESPONSE in: coordinateResponse() [BIDIRECTIONAL]
-//
-// Pushed by the server back to agency clients as it processes incoming
-// CoordinationMessages. Each response contains specific, actionable
-// instructions for how agencies should respond to the evolving situation.
-//
-// The server sends these responses to ALL connected agency clients,
-// ensuring every responder has the same up-to-date picture.
-//
-// Example flow of server responses:
-//   Response 1: "Zone A fire confirmed CRITICAL. Evacuate 10km radius."
-//   Response 2: "Aerial water bombers redirected from Zone B to Zone A."
-//   Response 3: "Met Dept: Predict wind shift in 40 mins. Update fire models."
-// ---------------------------------------------------------------------
 message CoordinationResponse {
-
-  string response_id         = 1;  // Unique ID for this response message
-                                    // e.g. "RESP-SERVER-20260305-001"
-
-  string region_id           = 2;  // The zone this response instruction applies to
-                                    // e.g. "ZONE-A-LAGOS"
-
-  string event_type          = 3;  // The type of event this response addresses
-                                    // e.g. "WILDFIRE", "DROUGHT"
-
-  string wildfire_risk_level = 4;  // Current server-computed risk level for this region
-                                    // Values: "LOW", "MEDIUM", "HIGH", "CRITICAL"
-
-  string recommended_action  = 5;  // Primary action the server recommends
-                                    // e.g. "Initiate immediate evacuation of villages
-                                    //        within 10km radius of fire front."
-
-  string target_agency       = 6;  // Which agency this instruction is directed at
-                                    // e.g. "Lagos Fire Service", "ALL_AGENCIES"
-                                    // Use "ALL_AGENCIES" to broadcast to every connected agency
-
-  string resource_allocation = 7;  // Resources the server is dispatching or reallocating
-                                    // e.g. "2 x aerial water bombers en route. ETA 18 mins."
-
-  string predicted_spread    = 8;  // Server prediction of how the situation will evolve
-                                    // e.g. "Based on current wind data, fire will reach Zone B
-                                    //        in approximately 35 minutes."
-
-  int32  priority            = 9;  // Urgency level of this response instruction
-                                    // 1 = LOW, 2 = MEDIUM, 3 = HIGH, 4 = CRITICAL
-
-  bool   evacuation_required = 10; // true if the server has determined evacuation is necessary
-                                    // The GUI will display a prominent evacuation warning when true
-
-  float  evacuation_radius_km = 11; // If evacuation_required is true, the recommended
-                                     // evacuation radius in kilometres from the fire centre
-                                     // e.g. 10.0
-
-  string coordination_notes  = 12; // Additional situational awareness notes for all agencies
-                                    // e.g. "Wind speed increasing. Do not position units NE of fire.
-                                    //        Next update in 5 minutes."
-
-  int64  timestamp           = 13; // Unix time in milliseconds when the server generated this response
+  string response_id          = 1;
+  string region_id            = 2;
+  string event_type           = 3;
+  string wildfire_risk_level  = 4;
+  string recommended_action   = 5;
+  string target_agency        = 6;
+  string resource_allocation  = 7;
+  string predicted_spread     = 8;
+  int32  priority             = 9;
+  bool   evacuation_required  = 10;
+  float  evacuation_radius_km = 11;
+  string coordination_notes   = 12;
+  int64  timestamp            = 13;
 }

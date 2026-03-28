@@ -4,21 +4,6 @@
  */
 package solutionca.distsysca;
 
-/**
- * SDG 15 - Life on Land
- * Smart Climate and Wildfire Risk Monitoring System
- *
- * Adapted from ExampleServiceDiscovery.java provided in class.
- * Original source: https://github.com/jmdns/jmdns
- *
- * Used by the GUI client to discover the three gRPC services on the
- * local network without needing a hardcoded IP address or port number.
- *
- * Usage in the GUI client:
- *   WildfireServiceDiscovery sd = new WildfireServiceDiscovery("_grpc._tcp.local.", "AlertService");
- *   ServiceInfo info = sd.discoverService(5000);
- *   int port = info.getPort();
- */
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -30,7 +15,6 @@ import javax.jmdns.ServiceEvent;
 import javax.jmdns.ServiceInfo;
 import javax.jmdns.ServiceListener;
 
-// This code is adapted from https://github.com/jmdns/jmdns
 public class WildfireServiceDiscovery {
 
     private String requiredServiceType;
@@ -72,13 +56,16 @@ public class WildfireServiceDiscovery {
                     ServiceInfo serviceInfo = event.getInfo();
                     int port = serviceInfo.getPort();
                     String resolvedServiceName = serviceInfo.getName();
-
                     System.out.println("####service " + resolvedServiceName + " resolved at: " + port);
-                    foundService = serviceInfo;
-                    // check if the name of the service is the one we are looking for - if not we
-                    // just ignore it.
-                    // the event we were waiting for has happened. Release the latch.
-                    latch.countDown();
+
+                    // ✅ Only accept the service we're actually looking for
+                    if (resolvedServiceName.equals(requiredServiceName)) {
+                        foundService = serviceInfo;
+                        latch.countDown();
+                    } else {
+                        System.out.println("Ignoring service: " + resolvedServiceName
+                                + " (looking for: " + requiredServiceName + ")");
+                    }
                 }
 
             });

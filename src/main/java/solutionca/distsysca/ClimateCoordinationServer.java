@@ -1,9 +1,8 @@
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package solutionca.distsysca;
 
+package solutionca.distsysca;
 
 import generated.grpc.climatecoordinationservice.ClimateCoordinationServiceGrpc.ClimateCoordinationServiceImplBase;
 import generated.grpc.climatecoordinationservice.CoordinationMessage;
@@ -61,14 +60,6 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
     /**
      * BIDIRECTIONAL STREAMING RPC
      * rpc coordinateResponse (stream CoordinationMessage) returns (stream CoordinationResponse) {}
-     *
-     * REMOTE ERROR HANDLING:
-     * - Returns Status.INVALID_ARGUMENT if sender_org or region_id is missing
-     * - onError() logs the gRPC error status to the server console
-     *
-     * CANCELLATION:
-     * - Checks Context.current().isCancelled() before processing each message.
-     *   If the client has cancelled, the server stops responding immediately.
      */
     @Override
     public StreamObserver<CoordinationMessage> coordinateResponse(
@@ -79,10 +70,6 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
             @Override
             public void onNext(CoordinationMessage message) {
 
-                // -----------------------------------------------------------
-                // CANCELLATION CHECK in bidirectional streaming
-                // If the client closed the stream or cancelled, stop processing
-                // -----------------------------------------------------------
                 if (Context.current().isCancelled()) {
                     System.out.println(LocalTime.now()
                             + ": coordinateResponse() - client cancelled. Stopping.");
@@ -99,10 +86,6 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
                         + " | Priority: " + message.getPriority()
                         + " | Update: "   + message.getStatusUpdate());
 
-                // -----------------------------------------------------------
-                // REMOTE ERROR HANDLING - INVALID_ARGUMENT
-                // sender_org and region_id are both required in every message
-                // -----------------------------------------------------------
                 if (message.getSenderOrg().isEmpty()) {
                     responseObserver.onError(Status.INVALID_ARGUMENT
                             .withDescription("sender_org is required in every CoordinationMessage")
@@ -117,10 +100,6 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
                     return;
                 }
 
-                // -----------------------------------------------------------
-                // REMOTE ERROR HANDLING - INVALID_ARGUMENT
-                // Priority must be between 1 and 4
-                // -----------------------------------------------------------
                 if (message.getPriority() < 1 || message.getPriority() > 4) {
                     responseObserver.onError(Status.INVALID_ARGUMENT
                             .withDescription("priority must be between 1 and 4. Received: "
@@ -167,9 +146,6 @@ public class ClimateCoordinationServer extends ClimateCoordinationServiceImplBas
 
             @Override
             public void onError(Throwable t) {
-                // -----------------------------------------------------------
-                // REMOTE ERROR HANDLING - log the error with gRPC status
-                // -----------------------------------------------------------
                 System.out.println(LocalTime.now()
                         + ": coordinateResponse() client stream ERROR: " + t.getMessage());
             }

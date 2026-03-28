@@ -110,7 +110,6 @@ public class AlertServer extends AlertServiceImplBase {
             return;
         }
 
-        // Incident ID is generated
         String incidentId = "INC-"
                 + request.getRegionId().replace("-", "").toUpperCase()
                 + "-" + System.currentTimeMillis();
@@ -159,8 +158,8 @@ public class AlertServer extends AlertServiceImplBase {
             StreamObserver<AlertNotification> responseObserver) {
 
         System.out.println(LocalTime.now() + ": subscribeToAlerts() received"
-                + " | Subscriber: "     + request.getSubscriberId()
-                + " | Region: "         + request.getRegionId()
+                + " | Subscriber: " + request.getSubscriberId()
+                + " | Region: " + request.getRegionId()
                 + " | Min Risk Level: " + request.getMinRiskLevel());
 
         if (request.getRegionId().isEmpty()) {
@@ -177,19 +176,35 @@ public class AlertServer extends AlertServiceImplBase {
             return;
         }
 
-        // Simulated environmental alerts
+        // Alerts are generated dynamically using the region from the request.
+        // Each alert uses the client's region_id so the output reflects what was typed.
+        // The description also references the subscribed region directly.
+        String region = request.getRegionId();
+        String minRisk = request.getMinRiskLevel().toUpperCase();
+
         String[][] alerts = {
-            {"WILDFIRE",      "HIGH",     "47.5", "9.2",  "35.0",
-             "Temperature rising rapidly. Dry vegetation detected in northern sector."},
-            {"WILDFIRE",      "HIGH",     "49.1", "6.3",  "52.0",
-             "Fire front advancing. Wind speed increasing to 52km/h. Road access limited."},
-            {"HEATWAVE",      "MEDIUM",   "43.0", "14.5", "28.0",
-             "Sustained high temperatures. Soil moisture critically low across Zone B."},
-            {"WILDFIRE",      "CRITICAL", "51.3", "4.1",  "61.0",
-             "CRITICAL: Fire crossed highway. Immediate evacuation recommended."},
-            {"DEFORESTATION", "MEDIUM",   "38.0", "22.0", "18.0",
-             "Unusual vegetation loss detected in northern sector. Rangers alerted."}
+            {"WILDFIRE", "HIGH", "47.5", "9.2", "35.0",
+                "Temperature rising rapidly in " + region + ". Dry vegetation detected."},
+            {"DROUGHT", "LOW", "24.2", "5.2", "52.0",
+                "Severe drought conditions worsening in " + region + ". Water reserves critically low."},
+            {"HEATWAVE", "MEDIUM", "43.0", "14.5", "28.0",
+                "Sustained high temperatures across " + region + ". Soil moisture critically low."},
+            {"WILDFIRE", "CRITICAL", "51.3", "4.1", "61.0",
+                "CRITICAL: Fire crossed highway in " + region + ". Immediate evacuation recommended."},
+            {"DEFORESTATION", "MEDIUM", "38.0", "22.0", "18.0",
+                "Unusual vegetation loss detected in " + region + ". Rangers alerted."}
         };
+
+        // Risk level order for filtering — only send alerts at or above min_risk_level
+        String[] riskOrder = {"LOW", "MEDIUM", "HIGH", "CRITICAL"};
+
+        int minIndex = 0;
+        for (int i = 0; i < riskOrder.length; i++) {
+            if (riskOrder[i].equals(minRisk)) {
+                minIndex = i;
+                break;
+            }
+        }
 
         for (String[] alert : alerts) {
 
@@ -202,9 +217,25 @@ public class AlertServer extends AlertServiceImplBase {
                 return;
             }
 
+            // Check alert risk level meets the subscriber's minimum threshold
+            int alertIndex = 0;
+            for (int i = 0; i < riskOrder.length; i++) {
+                if (riskOrder[i].equals(alert[1].toUpperCase())) {
+                    alertIndex = i;
+                    break;
+                }
+            }
+
+            // Skip this alert if it is below the subscriber's minimum risk level
+            if (alertIndex < minIndex) {
+                System.out.println(LocalTime.now() + ": subscribeToAlerts() skipping alert ["
+                        + alert[1] + "] — below min risk level [" + minRisk + "]");
+                continue;
+            }
+
             AlertNotification notification = AlertNotification.newBuilder()
-                    .setAlertId("ALERT-" + request.getRegionId() + "-" + System.currentTimeMillis())
-                    .setRegionId(request.getRegionId())
+                    .setAlertId("ALERT-" + region + "-" + System.currentTimeMillis())
+                    .setRegionId(region)
                     .setEventType(alert[0])
                     .setRiskLevel(alert[1])
                     .setTemperature(Float.parseFloat(alert[2]))
@@ -215,9 +246,10 @@ public class AlertServer extends AlertServiceImplBase {
                     .build();
 
             System.out.println(LocalTime.now() + ": subscribeToAlerts() streaming alert"
-                    + " | Event: "    + alert[0]
-                    + " | Risk: "     + alert[1]
-                    + " | Temp: "     + alert[2] + "C"
+                    + " | Event: " + alert[0]
+                    + " | Risk: " + alert[1]
+                    + " | Region: " + region
+                    + " | Temp: " + alert[2] + "C"
                     + " | Humidity: " + alert[3] + "%");
 
             responseObserver.onNext(notification);

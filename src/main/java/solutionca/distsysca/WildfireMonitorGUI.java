@@ -4,36 +4,6 @@
  */
 package solutionca.distsysca;
 
-/**
- * SDG 15 - Life on Land
- * Smart Climate and Wildfire Risk Monitoring System
- *
- * WildfireMonitorGUI - Single GUI client for all 3 gRPC services.
- *
- * ADVANCED gRPC FEATURES IMPLEMENTED:
- *
- *   METADATA:
- *   Every call attaches a "client-id" metadata header so the server
- *   knows which client is making the request. This is done by creating
- *   a withInterceptors() stub or by attaching headers before each call.
- *   Here we use stub.withDeadlineAfter() and pass metadata via
- *   ClientInterceptor on the channel so it applies to every single call.
- *
- *   DEADLINES:
- *   Every blocking stub call uses .withDeadlineAfter() to set a timeout.
- *   If the server does not respond within the deadline, the call fails
- *   with a DEADLINE_EXCEEDED status which the GUI catches and displays.
- *   This prevents the GUI from hanging forever if a server is slow.
- *
- *   ERROR HANDLING:
- *   Every button catches StatusRuntimeException and displays the
- *   gRPC Status code and description in the output area.
- *
- *   CANCELLATION:
- *   The Subscribe to Alerts (server streaming) button can be cancelled
- *   mid-stream using the Cancel Stream button. This sends a cancellation
- *   signal to the server via the ManagedChannel.
- */
 
 import generated.grpc.alertservice.AlertServiceGrpc;
 import generated.grpc.alertservice.AlertServiceGrpc.AlertServiceBlockingStub;
@@ -73,68 +43,54 @@ import java.util.concurrent.TimeUnit;
 
 public class WildfireMonitorGUI extends JFrame {
 
-    // -------------------------------------------------------------------
     // gRPC channels
-    // -------------------------------------------------------------------
     private ManagedChannel alertChannel;
     private ManagedChannel sensorChannel;
     private ManagedChannel coordinationChannel;
 
-    // -------------------------------------------------------------------
     // gRPC stubs
-    // Blocking = synchronous (Unary, Server Streaming)
-    // Async    = asynchronous (Client Streaming, Bidi Streaming)
-    // -------------------------------------------------------------------
     private AlertServiceBlockingStub         alertBlockingStub;
     private AlertServiceStub                 alertAsyncStub;
     private ClimateSensorServiceBlockingStub sensorBlockingStub;
     private ClimateSensorServiceStub         sensorAsyncStub;
     private ClimateCoordinationServiceStub   coordinationAsyncStub;
 
-    // -------------------------------------------------------------------
     // METADATA - client-id header key
-    // Attached to every outgoing call so the server knows who is calling.
-    // This is the METADATA advanced feature.
-    // -------------------------------------------------------------------
+
     private static final Metadata.Key<String> CLIENT_ID_KEY =
             Metadata.Key.of("client-id", Metadata.ASCII_STRING_MARSHALLER);
     private static final String CLIENT_ID = "WildfireMonitorGUI-NCI-001";
 
-    // -------------------------------------------------------------------
-    // Output areas
-    // -------------------------------------------------------------------
+
+    // Output 
+
     private JTextArea alertOutputArea;
     private JTextArea sensorOutputArea;
     private JTextArea coordinationOutputArea;
 
-    // -------------------------------------------------------------------
     // Status labels
-    // -------------------------------------------------------------------
+
     private JLabel alertStatusLabel;
     private JLabel sensorStatusLabel;
     private JLabel coordinationStatusLabel;
 
-    // -------------------------------------------------------------------
-    // Bidirectional stream observer - kept as field so Send button can use it
-    // -------------------------------------------------------------------
+    // Bidirectional stream observer 
+
     private StreamObserver<CoordinationMessage> coordinationRequestObserver;
 
-    // -------------------------------------------------------------------
-    // CANCELLATION - thread reference for the active alert stream
-    // Kept so the Cancel button can interrupt it
-    // -------------------------------------------------------------------
+    // CANCELLATION
+
     private Thread activeAlertStreamThread = null;
     private volatile boolean alertStreamCancelled = false;
 
-    // -------------------------------------------------------------------
+    
     // Pending sensor readings list for client streaming
-    // -------------------------------------------------------------------
+
     private final List<SensorReading>      pendingReadings  = new ArrayList<>();
     private final DefaultListModel<String> pendingListModel = new DefaultListModel<>();
 
-    // ===================================================================
     // Constructor
-    // ===================================================================
+
     public WildfireMonitorGUI() {
         setTitle("SDG 15 - Wildfire & Climate Risk Monitoring System");
         setSize(900, 700);
@@ -169,9 +125,6 @@ public class WildfireMonitorGUI extends JFrame {
         }).start();
     }
 
-    // ===================================================================
-    // Service Discovery + Channel + Stub setup
-    // ===================================================================
     private void discoverAllServices() {
         discoverAndConnect("AlertService",               50051, "alertService");
         discoverAndConnect("ClimateSensorService",       50052, "sensorService");
@@ -188,12 +141,6 @@ public class WildfireMonitorGUI extends JFrame {
             int    port = (info != null) ? info.getPort() : fallbackPort;
             String host = "localhost";
 
-            // ---------------------------------------------------------------
-            // METADATA - attach client-id header to every call on this channel
-            // We create a metadata object and use MetadataUtils.newAttachHeadersInterceptor()
-            // to intercept every outgoing call and add the header automatically.
-            // The server reads this header using the CLIENT_ID_KEY Metadata.Key.
-            // ---------------------------------------------------------------
             Metadata headers = new Metadata();
             headers.put(CLIENT_ID_KEY, CLIENT_ID);
 
@@ -235,9 +182,9 @@ public class WildfireMonitorGUI extends JFrame {
         }
     }
 
-    // ===================================================================
-    // TAB 1 - AlertService
-    // ===================================================================
+
+    // AlertService
+ 
     private JPanel buildAlertTab() {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
 
@@ -279,11 +226,6 @@ public class WildfireMonitorGUI extends JFrame {
         panel.add(topPanel,                         BorderLayout.NORTH);
         panel.add(new JScrollPane(alertOutputArea), BorderLayout.CENTER);
 
-        // -------------------------------------------------------------------
-        // reportIncident() - UNARY RPC
-        // DEADLINE: times out after 10 seconds
-        // ERROR HANDLING: catches StatusRuntimeException and shows status code
-        // -------------------------------------------------------------------
         reportBtn.addActionListener((ActionEvent e) -> {
             if (alertBlockingStub == null) {
                 alertOutputArea.append("ERROR: AlertService not connected yet.\n"); return;
@@ -324,14 +266,6 @@ public class WildfireMonitorGUI extends JFrame {
             }).start();
         });
 
-        // -------------------------------------------------------------------
-        // subscribeToAlerts() - SERVER STREAMING RPC
-        // DEADLINE: 60 seconds (long enough for all 5 alerts at 2s each)
-        // ERROR HANDLING: catches StatusRuntimeException
-        // CANCELLATION: Cancel Stream button interrupts the thread and sets
-        //   alertStreamCancelled=true. The server checks Context.isCancelled()
-        //   before each onNext() and stops streaming when it sees the cancel.
-        // -------------------------------------------------------------------
         subscribeBtn.addActionListener((ActionEvent e) -> {
             if (alertBlockingStub == null) {
                 alertOutputArea.append("ERROR: AlertService not connected yet.\n"); return;
@@ -390,11 +324,6 @@ public class WildfireMonitorGUI extends JFrame {
             activeAlertStreamThread.start();
         });
 
-        // -------------------------------------------------------------------
-        // CANCELLATION - Cancel Stream button
-        // Sets alertStreamCancelled=true so the while loop stops on next check.
-        // Also interrupts the thread in case it is blocked on alerts.hasNext().
-        // -------------------------------------------------------------------
         cancelBtn.addActionListener((ActionEvent e) -> {
             alertStreamCancelled = true;
             if (activeAlertStreamThread != null) {
@@ -409,9 +338,7 @@ public class WildfireMonitorGUI extends JFrame {
         return panel;
     }
 
-    // ===================================================================
-    // TAB 2 - ClimateSensorService
-    // ===================================================================
+    // ClimateSensorService
     private JPanel buildSensorTab() {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
 
@@ -492,11 +419,6 @@ public class WildfireMonitorGUI extends JFrame {
         panel.add(new JScrollPane(sensorOutputArea), BorderLayout.CENTER);
         panel.add(clearRow,                          BorderLayout.SOUTH);
 
-        // -------------------------------------------------------------------
-        // getLatestReading() - UNARY RPC
-        // DEADLINE: 10 seconds
-        // ERROR HANDLING: catches StatusRuntimeException, shows status code
-        // -------------------------------------------------------------------
         latestBtn.addActionListener((ActionEvent e) -> {
             if (sensorBlockingStub == null) {
                 sensorOutputArea.append("ERROR: ClimateSensorService not connected yet.\n"); return;
@@ -583,10 +505,6 @@ public class WildfireMonitorGUI extends JFrame {
             sensorOutputArea.append("Queue cleared.\n");
         });
 
-        // -------------------------------------------------------------------
-        // Send All to Server - CLIENT STREAMING RPC
-        // ERROR HANDLING: catches StatusRuntimeException in onError()
-        // -------------------------------------------------------------------
         sendAllBtn.addActionListener((ActionEvent e) -> {
             if (sensorAsyncStub == null) {
                 sensorOutputArea.append("ERROR: ClimateSensorService not connected yet.\n"); return;
@@ -670,9 +588,7 @@ public class WildfireMonitorGUI extends JFrame {
         return panel;
     }
 
-    // ===================================================================
-    // TAB 3 - ClimateCoordinationService
-    // ===================================================================
+    // ClimateCoordinationService
     private JPanel buildCoordinationTab() {
         JPanel panel = new JPanel(new BorderLayout(5, 5));
 
@@ -713,10 +629,6 @@ public class WildfireMonitorGUI extends JFrame {
         panel.add(topPanel,                                BorderLayout.NORTH);
         panel.add(new JScrollPane(coordinationOutputArea), BorderLayout.CENTER);
 
-        // -------------------------------------------------------------------
-        // Open Coordination Stream - BIDIRECTIONAL STREAMING
-        // ERROR HANDLING: onError() catches StatusRuntimeException from server
-        // -------------------------------------------------------------------
         openStreamBtn.addActionListener((ActionEvent e) -> {
             if (coordinationAsyncStub == null) {
                 coordinationOutputArea.append("ERROR: CoordinationService not connected yet.\n"); return;
@@ -775,10 +687,6 @@ public class WildfireMonitorGUI extends JFrame {
             closeBtn.setEnabled(true);
         });
 
-        // -------------------------------------------------------------------
-        // Send Update - streams ONE CoordinationMessage
-        // ERROR HANDLING: validates priority before sending
-        // -------------------------------------------------------------------
         sendMsgBtn.addActionListener((ActionEvent e) -> {
             if (coordinationRequestObserver == null) {
                 coordinationOutputArea.append(
@@ -824,9 +732,7 @@ public class WildfireMonitorGUI extends JFrame {
         return panel;
     }
 
-    // ===================================================================
     // main()
-    // ===================================================================
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             WildfireMonitorGUI gui = new WildfireMonitorGUI();

@@ -6,92 +6,43 @@ option java_outer_classname = "ClimateSensorServiceImpl";
 
 package sdg15.sensor;
 
-
-// ClimateSensorService is simulates a network of smart environmental sensors 
-// deployed across land zones which would continuously measuring atmospheric 
-// and ground conditions for data collection. The service methods used are:
-//   - getLatestReading()      UNARY           
-//   - streamSensorReadings()  CLIENT STREAMING 
-
-
 service ClimateSensorService {
-
-  // UNARY RPC
   rpc getLatestReading (SensorRequest) returns (SensorReading) {}
-
-  // CLIENT STREAMING RPC
   rpc streamSensorReadings (stream SensorReading) returns (SensorSummary) {}
-
 }
-
-// Request Messages for getLatestReading() 
 
 message SensorRequest {
-
-  string sensor_id  = 1;  
-
-  string region_id  = 2;  
+  string sensor_id  = 1;
+  string region_id  = 2;
 }
-
-// Messages 
-// Used as resonse message for getLatestReading() 
-// Used as streamed request for streamSensorReadings() 
 
 message SensorReading {
-
-  string sensor_id      = 1;  
-
-  string region_id      = 2;  
-
-  float  temperature    = 3;  
-
-  float  humidity       = 4;  
-
-  int32  co2_ppm        = 5;  
-
-  float  wind_speed     = 6;  
-
-  float  soil_moisture  = 7;  
-
-  float  latitude       = 8;  
-
-  float  longitude      = 9;  
-
-  int64  timestamp      = 10; 
-
-  string battery_status = 11; 
+  string sensor_id      = 1;
+  string region_id      = 2;
+  float  temperature    = 3;
+  float  humidity       = 4;
+  int32  co2_ppm        = 5;
+  float  wind_speed     = 6;
+  float  soil_moisture  = 7;
+  float  latitude       = 8;
+  float  longitude      = 9;
+  int64  timestamp      = 10;
+  string battery_status = 11;
 }
 
-
-// response message streamSensorReadings
-
 message SensorSummary {
-
-  string status              = 1;  
-
-  int32  readings_received   = 2;  
-
-  int32  readings_saved      = 3;  
-
-  int32  readings_rejected   = 4;  
-
-  float  avg_temperature     = 5;  
-
-  float  max_temperature     = 6;  
-
-  float  avg_humidity        = 7;  
-
-  float  min_humidity        = 8;  
-
-  float  avg_wind_speed      = 9;  
-
-  float  avg_co2_ppm         = 10; 
-
-  string risk_assessment     = 11; 
-
-  string risk_reasoning      = 12; 
-
-  repeated string flagged_sensors = 13; 
-
-  int64  processed_at        = 14; 
+  string status              = 1;
+  int32  readings_received   = 2;
+  int32  readings_saved      = 3;
+  int32  readings_rejected   = 4;
+  float  avg_temperature     = 5;
+  float  max_temperature     = 6;
+  float  avg_humidity        = 7;
+  float  min_humidity        = 8;
+  float  avg_wind_speed      = 9;
+  float  avg_co2_ppm         = 10;
+  string risk_assessment     = 11;
+  string risk_reasoning      = 12;
+  repeated string flagged_sensors = 13;
+  int64  processed_at        = 14;
 }
