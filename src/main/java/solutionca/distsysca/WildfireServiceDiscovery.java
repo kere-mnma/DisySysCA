@@ -32,7 +32,7 @@ public class WildfireServiceDiscovery {
 
         try {
 
-            // Create a JmDNS instance
+            // JmDNS instance created
             JmDNS jmdns = JmDNS.create(InetAddress.getLocalHost());
             System.out.println("Client: InetAddress.getLocalHost():" + InetAddress.getLocalHost());
 
@@ -58,7 +58,6 @@ public class WildfireServiceDiscovery {
                     String resolvedServiceName = serviceInfo.getName();
                     System.out.println("####service " + resolvedServiceName + " resolved at: " + port);
 
-                    // ✅ Only accept the service we're actually looking for
                     if (resolvedServiceName.equals(requiredServiceName)) {
                         foundService = serviceInfo;
                         latch.countDown();

@@ -176,9 +176,6 @@ public class AlertServer extends AlertServiceImplBase {
             return;
         }
 
-        // Alerts are generated dynamically using the region from the request.
-        // Each alert uses the client's region_id so the output reflects what was typed.
-        // The description also references the subscribed region directly.
         String region = request.getRegionId();
         String minRisk = request.getMinRiskLevel().toUpperCase();
 
