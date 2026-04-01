@@ -4,6 +4,12 @@
  */
 package solutionca.distsysca;
 
+/**
+ * @author Eziagbor Osele
+ * SDG 15 - Life on Land
+ * Project Topic - Smart Climate and Wildfire Risk Monitoring System
+ */
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;

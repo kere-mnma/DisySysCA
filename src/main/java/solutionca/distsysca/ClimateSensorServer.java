@@ -4,6 +4,12 @@
  */
 package solutionca.distsysca;
 
+/**
+ * @author Eziagbor Osele
+ * SDG 15 - Life on Land
+ * Project Topic - Smart Climate and Wildfire Risk Monitoring System
+ */
+
 import generated.grpc.climatesensorservice.ClimateSensorServiceGrpc.ClimateSensorServiceImplBase;
 import generated.grpc.climatesensorservice.SensorRequest;
 import generated.grpc.climatesensorservice.SensorReading;

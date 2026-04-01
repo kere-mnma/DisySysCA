@@ -5,8 +5,9 @@
 package solutionca.distsysca;
 
 /**
+ * @author Eziagbor Osele
  * SDG 15 - Life on Land
- * Smart Climate and Wildfire Risk Monitoring System
+ * Project Topic - Smart Climate and Wildfire Risk Monitoring System
  */
 
 import generated.grpc.alertservice.AlertServiceGrpc.AlertServiceImplBase;
